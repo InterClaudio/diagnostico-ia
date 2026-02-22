@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diagnóstico IA · Claudio González</title>
+
+  <!-- Bootstrap (pedido por vos) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
+
+  <!-- Tipografías -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+
+    :root {
+      --bg: radial-gradient(circle at top left, #151824 0, #050509 40%, #05060a 100%);
+      --surface: #020617;
+      --surface-soft: #020617;
+      --border: rgba(148,163,184,.35);
+      --text: #f9fafb;
+      --muted: rgba(229,231,235,.7);
+      --accent: #6366f1;
+      --accent-g: linear-gradient(135deg,#6366f1,#8b5cf6);
+      --accent-soft: rgba(99,102,241,.16);
+      --accent-glow: rgba(99,102,241,.38);
+      --green: #22c55e;
+      --font: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-d: "Playfair Display", Georgia, serif;
+      --ease: cubic-bezier(.4,0,.2,1);
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    body::before{
+      content: "";
+      position: fixed;
+      width: 520px; height: 520px;
+      top: -180px; right: -120px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(99,102,241,.28) 0%, transparent 70%);
+      pointer-events:none;
+      z-index:0;
+    }
+    body::after{
+      content: "";
+      position: fixed;
+      width: 360px; height: 360px;
+      bottom:-160px; left:-90px;
+      border-radius:50%;
+      background: radial-gradient(circle, rgba(34,197,94,.2) 0%, transparent 70%);
+      pointer-events:none;
+      z-index:0;
+    }
+
+    .app-shell{
+      position:relative;
+      z-index:1;
+      width:100%;
+      max-width:1120px;
+      margin:24px auto;
+      padding:0 16px 24px;
+    }
+
+    .app-frame{
+      border-radius:22px;
+      border:1px solid rgba(15,23,42,1);
+      background: radial-gradient(circle at top left, rgba(15,23,42,.96), rgba(15,23,42,.9));
+      box-shadow:0 24px 64px rgba(15,23,42,.9);
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+      backdrop-filter:blur(16px);
+    }
+
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 22px;
+      border-bottom:1px solid rgba(30,64,175,.7);
+      background: linear-gradient(90deg,#020617,#020617);
+    }
+
+    .brand{display:flex;flex-direction:column;gap:2px;}
+    .brand-main{
+      font-size:12px;
+      letter-spacing:.2em;
+      text-transform:uppercase;
+      color:rgba(148,163,184,.9);
+      font-weight:600;
+    }
+    .brand-sub{
+      font-size:13px;
+      color:rgba(226,232,240,.9);
+    }
+    .brand-sub span{font-weight:600;}
+
+    .progress-wrap{display:flex;align-items:center;gap:10px;}
+    .progress-label{
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.16em;
+      color:rgba(148,163,184,.9);
+    }
+    .progress-track{
+      width:160px; height:4px;
+      border-radius:999px;
+      background:#020617;
+      border:1px solid rgba(51,65,85,1);
+      overflow:hidden;
+    }
+    .progress-fill{
+      height:100%;
+      background:var(--accent-g);
+      width:0%;
+      border-radius:999px;
+      transition:width .5s var(--ease);
+    }
+    .progress-pct{font-size:12px;color:var(--muted);min-width:28px;text-align:right;}
+
+    .main{
+      position:relative;
+      flex:1;
+    }
+    .main-scroll{
+      padding:22px 22px 26px;
+    }
+
+    .screen{
+      display:none;
+      align-items:flex-start;
+      justify-content:center;
+      transition:opacity .25s var(--ease), transform .25s var(--ease);
+      opacity:0;
+      transform:translateY(8px);
+    }
+    .screen.active,
+    .screen.exit-up{display:flex;}
+    .screen.active{opacity:1;transform:translateY(0);}
+    .screen.exit-up{opacity:0;transform:translateY(-8px);}
+
+    .screen-inner{
+      width:100%;
+      max-width:720px;
+      background:var(--surface);
+      border-radius:16px;
+      padding:22px 22px 20px;
+      border:1px solid rgba(30,64,175,.6);
+      box-shadow:0 16px 40px rgba(15,23,42,.85);
+    }
+
+    .q-num{
+      font-size:11px;
+      letter-spacing:.22em;
+      text-transform:uppercase;
+      color:rgba(148,163,184,.95);
+      font-weight:600;
+      margin-bottom:12px;
+    }
+
+    .q-title{
+      font-family:var(--font-d);
+      font-size:clamp(22px,3.2vw,30px);
+      line-height:1.2;
+      margin-bottom:10px;
+    }
+    .q-title em{
+      font-style:italic;
+      background:var(--accent-g);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+      background-clip:text;
+    }
+
+    .q-clarify{
+      font-size:14px;
+      color:var(--muted);
+      line-height:1.7;
+      margin-bottom:20px;
+      max-width:540px;
+    }
+
+    .options{display:flex;flex-direction:column;gap:8px;margin-bottom:20px;}
+    .opt{
+      display:flex;align-items:center;gap:12px;
+      padding:12px 14px;
+      background:#020617;
+      border-radius:12px;
+      border:1px solid rgba(51,65,85,1);
+      cursor:pointer;
+      transition:all .15s var(--ease);
+      user-select:none;
+    }
+    .opt:hover{border-color:rgba(148,163,184,.95);}
+    .opt.selected{
+      border-color:var(--accent);
+      box-shadow:0 0 0 1px var(--accent-soft),0 8px 22px var(--accent-glow);
+    }
+    .opt-key{
+      width:26px;height:26px;
+      border-radius:999px;
+      border:1px solid rgba(75,85,99,1);
+      display:flex;align-items:center;justify-content:center;
+      font-size:11px;font-weight:600;color:rgba(148,163,184,.95);
+      flex-shrink:0;
+    }
+    .opt.selected .opt-key{
+      background:var(--accent-g);
+      border-color:transparent;
+      color:#fff;
+    }
+    .opt-label{font-size:14px;font-weight:500;}
+    .opt-sub{font-size:12px;color:rgba(148,163,184,.95);margin-top:2px;}
+
+    .multi-hint{
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.12em;
+      color:rgba(148,163,184,.95);
+      margin-bottom:8px;
+    }
+
+    .f-wrap{margin-bottom:8px;}
+    .f-input,.f-textarea{
+      width:100%;
+      background:#020617;
+      border-radius:12px;
+      border:1px solid rgba(51,65,85,1);
+      padding:12px 14px;
+      font-size:14px;
+      color:var(--text);
+      outline:none;
+      transition:border-color .15s, box-shadow .15s;
+      caret-color:var(--accent);
+    }
+    .f-input::placeholder,.f-textarea::placeholder{color:rgba(148,163,184,.9);}
+    .f-input:focus,.f-textarea:focus{
+      border-color:var(--accent);
+      box-shadow:0 0 0 1px var(--accent-soft);
+    }
+    .f-textarea{min-height:120px;resize:none;line-height:1.5;}
+
+    .bottombar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:10px 22px 14px;
+      border-top:1px solid rgba(30,64,175,.7);
+      background:#020617;
+    }
+
+    .btn-row{display:flex;gap:8px;align-items:center;}
+    .btn{
+      border-radius:999px;
+      font-size:13px;
+      font-weight:600;
+      padding:8px 18px;
+    }
+    .btn-back{
+      background:#020617;
+      color:rgba(148,163,184,.95);
+      border:1px solid rgba(75,85,99,1);
+    }
+    .btn-back:hover{border-color:rgba(148,163,184,.95);}
+    .btn-next{
+      background:var(--accent-g);
+      color:#fff;
+      border:none;
+      box-shadow:0 10px 26px var(--accent-glow);
+    }
+    .btn-next:disabled{opacity:.45;box-shadow:none;}
+    .btn-submit{
+      background:linear-gradient(135deg,#22c55e,#16a34a);
+      color:#022c22;
+      border:none;
+      box-shadow:0 10px 26px rgba(34,197,94,.55);
+    }
+
+    .hint-enter{
+      font-size:12px;
+      color:var(--muted);
+      display:flex;align-items:center;gap:6px;
+    }
+    .key-badge{
+      width:22px;height:18px;
+      border-radius:4px;
+      border:1px solid rgba(75,85,99,1);
+      display:flex;align-items:center;justify-content:center;
+      font-size:10px;font-weight:600;
+    }
+
+    .err{font-size:12px;color:#f97373;display:none;margin-top:6px;}
+    .err.show{display:block;}
+
+    .welcome-badge{
+      display:inline-flex;align-items:center;gap:6px;
+      border-radius:999px;
+      padding:4px 10px;
+      border:1px solid rgba(75,85,99,1);
+      background:#020617;
+      font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:rgba(209,213,219,.95);
+      margin-bottom:16px;
+    }
+    .welcome-badge .dot{
+      width:6px;height:6px;border-radius:999px;background:var(--green);
+      box-shadow:0 0 8px var(--green);
+    }
+    .welcome-title{
+      font-family:var(--font-d);
+      font-size:clamp(26px,3.6vw,38px);
+      line-height:1.1;
+      margin-bottom:12px;
+    }
+    .welcome-title em{
+      background:var(--accent-g);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+      background-clip:text;
+    }
+    .welcome-desc{font-size:14px;color:var(--muted);line-height:1.7;max-width:520px;margin-bottom:18px;}
+    .welcome-meta{display:flex;flex-wrap:wrap;gap:14px;align-items:center;}
+    .meta-item{display:flex;align-items:center;gap:6px;font-size:13px;color:rgba(209,213,219,.9);}
+    .wa-link{
+      display:inline-flex;align-items:center;gap:6px;
+      font-size:13px;
+      text-decoration:none;
+      color:#bbf7d0;
+      border-radius:999px;
+      padding:6px 12px;
+      border:1px solid rgba(34,197,94,.6);
+      background:rgba(6,95,70,.25);
+    }
+
+    .success-wrap{text-align:center;max-width:460px;margin:0 auto;}
+    .success-icon{
+      width:72px;height:72px;border-radius:50%;
+      border:1px solid rgba(34,197,94,.6);
+      background:rgba(22,163,74,.16);
+      display:flex;align-items:center;justify-content:center;
+      margin:0 auto 18px;
+    }
+    .success-title{font-family:var(--font-d);font-size:30px;margin-bottom:10px;}
+    .success-text{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:18px;}
+    .success-wa{
+      display:inline-flex;align-items:center;gap:8px;
+      text-decoration:none;
+      padding:10px 16px;
+      border-radius:999px;
+      border:1px solid rgba(34,197,94,.6);
+      color:#bbf7d0;
+      background:rgba(22,163,74,.2);
+    }
+
+    .overlay{
+      display:none;position:fixed;inset:0;
+      background:rgba(15,23,42,.9);
+      z-index:100;align-items:center;justify-content:center;flex-direction:column;gap:12px;
+    }
+    .overlay.show{display:flex;}
+    .spinner{
+      width:40px;height:40px;border-radius:50%;
+      border:3px solid rgba(30,64,175,.9);
+      border-top-color:var(--accent);
+      animation:spin .8s linear infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg);}}
+
+    @media (max-width:900px){
+      .app-shell{margin:8px auto;padding:0 10px 16px;}
+      .topbar{padding:10px 14px;flex-direction:column;align-items:flex-start;gap:4px;}
+      .main-scroll{padding:16px 14px 20px;}
+      .screen-inner{padding:18px 16px;}
+      .hint-enter{display:none;}
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-shell">
+  <div class="app-frame">
+
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-main">Entrenamiento en Inteligencia Artificial</div>
+        <div class="brand-sub">Plan de acción personalizado</div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-label">Progreso</div>
+        <div class="progress-track"><div class="progress-fill" id="prog"></div></div>
+        <div class="progress-pct" id="prog-pct">0%</div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="main-scroll" id="main">
+
+        <!-- WELCOME -->
+        <div class="screen active" id="s-welcome">
+          <div class="screen-inner">
+            <h1 class="welcome-title"><em>Diagnóstico</em><br>preliminar</h1>
+            <p class="welcome-desc">Hola, soy Claudio. Antes que nada, felicitaciones por encarar este entrenamiento en Inteligencia Artificial: es una forma inteligente de ganar claridad y ventaja en lo que viene.</p>
+            <p class="welcome-desc" style="margin-top:10px;">Este diagnóstico me ayuda a entender desde dónde arrancás, qué querés lograr y cómo trabajás — para armarte un plan que tenga sentido para vos, no para cualquier persona.</p>
+            <p class="welcome-desc" style="margin-top:10px;">Son 8 a 10 preguntas, tarda entre 5 y 10 minutos, y no hay respuestas incorrectas.</p>
+
+            <div class="welcome-meta">
+              <div class="meta-item">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                5–10 minutos
+              </div>
+              <div class="meta-item">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                Respuestas privadas
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Q1 Nombre -->
+        <div class="screen" id="s-q1">
+          <div class="screen-inner">
+            <div class="q-num">Pregunta 1</div>
+            <h2 class="q-title">¿Cómo te <em>llamás?</em></h2>
+            <p class="q-clarify">Quiero saber tu nombre para que el diagnóstico que arme tenga tu cara, no la de cualquier persona genérica.</p>
+            <div class="f-wrap"><input class="f-input" id="q-nombre" type="text" placeholder="Tu nombre y apellido..." autocomplete="name" /></div>
+            <div class="err" id="err-q1">Por favor ingresá tu nombre para continuar.</div>
+          </div>
+        </div>
+
+        <!-- Q2 Uso principal -->
+        <div class="screen" id="s-q2">
+          <div class="screen-inner">
+            <div class="q-num">Pregunta 2</div>
+            <h2 class="q-title">¿Dónde te imaginás <em>usando la IA?</em></h2>
+            <p class="q-clarify">Esta es la pregunta más importante del diagnóstico. Tu respuesta define los ejemplos, las herramientas y el enfoque de todo lo que sigue. No hay opción correcta.</p>
+            <div class="options" id="uso-opts">
+              <div class="opt" data-val="personal" onclick="selectOpt(this,'uso')"><div class="opt-key">A</div><div><div class="opt-label">Solo en mi vida personal</div><div class="opt-sub">Organización, aprendizaje, escritura, productividad diaria</div></div></div>
+              <div class="opt" data-val="empresa" onclick="selectOpt(this,'uso')"><div class="opt-key">B</div><div><div class="opt-label">Solo en la empresa</div><div class="opt-sub">Trabajo, procesos, clientes, operación del negocio</div></div></div>
+              <div class="opt" data-val="ambas" onclick="selectOpt(this,'uso')"><div class="opt-key">C</div><div><div class="opt-label">En ambas cosas</div><div class="opt-sub">Tanto en lo personal como en la empresa</div></div></div>
+            </div>
+            <div class="err" id="err-q2">Seleccioná una opción para continuar.</div>
+          </div>
+        </div>
+
+        <!-- Q3A Uso personal -->
+        <div class="screen" id="s-q3a">
+          <div class="screen-inner">
+            <div class="q-num">Pregunta 3</div>
+            <h2 class="q-title">¿En qué aspectos de tu <em>vida personal?</em></h2>
+            <p class="q-clarify">Quiero entender qué parte de tu vida cotidiana te gustaría mejorar con IA. Esto me ayuda a traer ejemplos que tengan sentido para vos.</p>
+            <div class="multi-hint">Podés elegir más de uno</div>
+            <div class="options" id="personal-opts">
+              <div class="opt" data-val="Organización personal y agenda" onclick="toggleMulti(this,'uso_personal')"><div class="opt-key">A</div><div><div class="opt-label">Organización personal y agenda</div></div></div>
+              <div class="opt" data-val="Redacción de mensajes, mails o textos" onclick="toggleMulti(this,'uso_personal')"><div class="opt-key">B</div><div><div class="opt-label">Redacción de mensajes, mails o textos</div></div></div>
+              <div class="opt" data-val="Aprendizaje y curiosidad general" onclick="toggleMulti(this,'uso_personal')"><div class="opt-key">C</div><div><div class="opt-label">Aprendizaje y curiosidad general</div></div></div>
+              <div class="opt" data-val="Búsqueda de información eficiente" onclick="toggleMulti(this,'uso_personal')"><div class="opt-key">D</div><div><div class="opt-label">Búsqueda de información más eficiente</div></div></div>
+              <div class="opt" data-val="Productividad y gestión de tareas" onclick="toggleMulti(this,'uso_personal')"><div class="opt-key">E</div><div><div class="opt-label">Productividad y gestión de tareas</div></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Q3B Rol empresa -->
+        <div class="screen" id="s-q3b">
+          <div class="screen-inner">
+            <div class="q-num">Pregunta <span id="q3b-num">3</span></div>
+            <h2 class="q-title">¿Cuál es tu <em>función</em> en la empresa?</h2>
+            <p class="q-clarify">No es lo mismo hablarle al que está en la operación diaria que al que toma decisiones. Saber tu función me permite traer ejemplos que tengan sentido para lo que vos hacés.</p>
+            <div class="options" id="rol-opts">
+              <div class="opt" data-val="Dirección / toma de decisiones" onclick="selectOpt(this,'rol')"><div class="opt-key">A</div><div><div class="opt-label">Dirección / toma de decisiones</div></div></div>
+              <div class="opt" data-val="Operación / producción" onclick="selectOpt(this,'rol')"><div class="opt-key">B</div><div><div class="opt-label">Operación / producción</div></div></div>
+              <div class="opt" data-val="Administración / facturación / finanzas" onclick="selectOpt(this,'rol')"><div class="opt-key">C</div><div><div class="opt-label">Administración / facturación / finanzas</div></div></div>
+              <div class="opt" data-val="Comercial / atención a clientes" onclick="selectOpt(this,'rol')"><div class="opt-key">D</div><div><div class="opt-label">Comercial / atención a clientes</div></div></div>
+              <div class="opt" data-val="Logística" onclick="selectOpt(this,'rol')"><div class="opt-key">E</div><div><div class="opt-label">Logística</div></div></div>
+              <div class="opt" data-val="Mixto" onclick="selectOpt(this,'rol')"><div class="opt-key">F</div><div><div class="opt-label">Mixto — me ocupo de varias cosas</div></div></div>
+            </div>
+            <div class="err" id="err-q3b">Seleccioná tu función para continuar.</div>
+          </div>
+        </div>
+
+        <!-- Q4 Experiencia -->
+        <div class="screen" id="s-q4">
+          <div class="screen-inner">
+            <div class="q-num">Pregunta <span id="q4-num">4</span></div>
+            <h2 class="q-title">¿Cuánto <em>sabés de IA</em> hoy?</h2>
+            <p class="q-clarify">Esto me dice en qué punto estás — no el que creés que "deberías" estar. Si nunca usaste nada, arrancamos desde cero. Si ya usás seguido, avanzamos más rápido.</p>
+            <div class="options" id="exp-opts">
+              <div class="opt" data-val="Nunca usé nada" onclick="selectOpt(this,'experiencia')"><div class="opt-key">A</div><div><div class="opt-label">Nunca usé nada</div><div class="opt-sub">Es territorio completamente nuevo para mí</div></div></div>
+              <div class="opt" data-val="Lo probé una o dos veces" onclick="selectOpt(this,'experiencia')"><div class="opt-key">B</div><div><div class="opt-label">Lo probé una o dos veces</div><div class="opt-sub">Pero no le encontré la vuelta</div></div></div>
+              <div class="opt" data-val="Lo uso de vez en cuando" onclick="selectOpt(this,'experiencia')"><div class="opt-key">C</div><div><div class="opt-label">Lo uso de vez en cuando</div><div class="opt-sub">Sin mucho método</div></div></div>
+              <div class="opt" data-val="Lo uso seguido y me manejo bien" onclick="selectOpt(this,'experiencia')"><div class="opt-key">D</div><div><div class="opt-label">Lo uso seguido y me manejo bien</div><div class="opt-sub">Tengo cierta práctica</div></div></div>
+            </div>
+            <div class="err" id="err-q4">Seleccioná tu nivel de experiencia.</div>
+          </div>
+        </div>
+
+        <!-- Q5 Herramientas -->
+        <div class="screen" id="s-q5">
+          <div class="screen-inner">
+            <div class="q-num">Pregunta <span id="q5-num">5</span></div>
+            <h2 class="q-title">¿Qué <em>herramientas</em> conocés?</h2>
+            <p class="q-clarify">Aunque sea de nombre. Saber qué herramientas tocaron me ayuda a arrancar desde algo conocido y a entender si tienen preferencias.</p>
+            <div class="multi-hint">Podés elegir más de uno</div>
+            <div class="options" id="herr-opts">
+              <div class="opt" data-val="ChatGPT (OpenAI)" onclick="toggleMulti(this,'herramientas')"><div class="opt-key">A</div><div><div class="opt-label">ChatGPT</div><div class="opt-sub">OpenAI</div></div></div>
+              <div class="opt" data-val="Gemini (Google)" onclick="toggleMulti(this,'herramientas')"><div class="opt-key">B</div><div><div class="opt-label">Gemini</div><div class="opt-sub">Google</div></div></div>
+              <div class="opt" data-val="Copilot (Microsoft)" onclick="toggleMulti(this,'herramientas')"><div class="opt-key">C</div><div><div class="opt-label">Copilot</div><div class="opt-sub">Microsoft</div></div></div>
+              <div class="opt" data-val="Claude (Anthropic)" onclick="toggleMulti(this,'herramientas')"><div class="opt-key">D</div><div><div class="opt-label">Claude</div><div class="opt-sub">Anthropic</div></div></div>
+              <div class="opt" data-val="Ninguna todavía" onclick="toggleMulti(this,'herramientas')"><div class="opt-key">E</div><div><div class="opt-label">Ninguna todavía</div></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Q6 Formato -->
+        <div class="screen" id="s-q6">
+          <div class="screen-inner">
+            <div class="q-num">Pregunta <span id="q6-num">6</span></div>
+            <h2 class="q-title">¿Qué <em>formato</em> buscás?</h2>
+            <p class="q-clarify">Esta pregunta define el producto. No hay opción mejor — son cosas distintas con valores distintos. Elegí la que realmente se adapta a lo que necesitás.</p>
+            <div class="options" id="formato-opts">
+              <div class="opt" data-val="Charlas de consulta (1-2 sesiones)" onclick="selectOpt(this,'formato')"><div class="opt-key">A</div><div><div class="opt-label">Charlas de consulta</div><div class="opt-sub">1 o 2 sesiones para despejar dudas puntuales</div></div></div>
+              <div class="opt" data-val="Programa estructurado (varias semanas)" onclick="selectOpt(this,'formato')"><div class="opt-key">B</div><div><div class="opt-label">Programa de aprendizaje estructurado</div><div class="opt-sub">Varias semanas, con práctica y progresión</div></div></div>
+              <div class="opt" data-val="No sé todavía" onclick="selectOpt(this,'formato')"><div class="opt-key">C</div><div><div class="opt-label">Todavía no lo sé</div><div class="opt-sub">Necesito que me orientes</div></div></div>
+            </div>
+            <div class="err" id="err-q6">Seleccioná un formato para continuar.</div>
+          </div>
+        </div>
+
+        <!-- Q7 Objetivos -->
+        <div class="screen" id="s-q7">
+          <div class="screen-inner">
+            <div class="q-num">Pregunta <span id="q7-num">7</span></div>
+            <h2 class="q-title">¿Qué querés <em>poder hacer</em> al terminar?</h2>
+            <p class="q-clarify">No "aprender IA en general" — sino qué querés poder hacer vos, con tus manos, al final del proceso. Esto define las prioridades del contenido.</p>
+            <div class="multi-hint">Elegí todo lo que resuene con vos</div>
+            <div class="options" id="obj-opts">
+              <div class="opt" data-val="Entender qué es la IA y para qué sirve" onclick="toggleMulti(this,'objetivos')"><div class="opt-key">A</div><div><div class="opt-label">Entender realmente qué es la IA (y para qué no sirve)</div></div></div>
+              <div class="opt" data-val="Usar ChatGPT o Gemini con criterio" onclick="toggleMulti(this,'objetivos')"><div class="opt-key">B</div><div><div class="opt-label">Usar ChatGPT o Gemini con criterio propio</div></div></div>
+              <div class="opt" data-val="Escribir buenos prompts" onclick="toggleMulti(this,'objetivos')"><div class="opt-key">C</div><div><div class="opt-label">Escribir buenos prompts y obtener resultados útiles</div></div></div>
+              <div class="opt" data-val="Automatizar tareas repetitivas" onclick="toggleMulti(this,'objetivos')"><div class="opt-key">D</div><div><div class="opt-label">Automatizar tareas repetitivas que me consumen tiempo</div></div></div>
+              <div class="opt" data-val="Ideas concretas para la empresa" onclick="toggleMulti(this,'objetivos')"><div class="opt-key">E</div><div><div class="opt-label">Encontrar ideas concretas de aplicación en mi empresa</div></div></div>
+              <div class="opt" data-val="Privacidad y seguridad con IA" onclick="toggleMulti(this,'objetivos')"><div class="opt-key">F</div><div><div class="opt-label">Entender cómo proteger mi privacidad al usar IA</div></div></div>
+            </div>
+            <div class="err" id="err-q7">Elegí al menos un objetivo para continuar.</div>
+          </div>
+        </div>
+
+        <!-- Q8 Mini test -->
+        <div class="screen" id="s-q8">
+          <div class="screen-inner">
+            <div class="q-num">Pregunta <span id="q8-num">8</span></div>
+            <h2 class="q-title">¿Qué le pedirías a una IA <em>hoy mismo?</em></h2>
+            <p class="q-clarify">Esto no es un examen. Lo que quiero ver es qué tipo de problema querés resolver y cómo te expresás. Puede ser del trabajo, algo personal, lo que se te ocurra.</p>
+            <div class="f-wrap"><textarea class="f-textarea" id="q-minitest" placeholder="Escribí lo que se te ocurra..."></textarea></div>
+            <div class="err" id="err-q8">Escribí algo para continuar — no hay respuesta incorrecta.</div>
+          </div>
+        </div>
+
+        <!-- Q9 Casos uso -->
+        <div class="screen" id="s-q9">
+          <div class="screen-inner">
+            <div class="q-num">Pregunta <span id="q9-num">9</span> <span style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:rgba(148,163,184,.95);margin-left:4px;">Opcional</span></div>
+            <h2 class="q-title">¿En qué situaciones te <em>imaginás</em> usando IA?</h2>
+            <p class="q-clarify">Esto me da el mapa de valor real — no solo qué quieren aprender, sino qué casos tienen más impacto para ustedes. Es opcional pero muy valioso.</p>
+            <div class="multi-hint">Podés elegir más de uno</div>
+            <div class="options" id="casos-opts">
+              <div class="opt" data-val="Redactar mails y mensajes más rápido" onclick="toggleMulti(this,'casos')"><div class="opt-key">A</div><div><div class="opt-label">Redactar mails y mensajes más rápido</div></div></div>
+              <div class="opt" data-val="Armar presupuestos y propuestas" onclick="toggleMulti(this,'casos')"><div class="opt-key">B</div><div><div class="opt-label">Armar presupuestos y propuestas</div></div></div>
+              <div class="opt" data-val="Responder consultas frecuentes automáticamente" onclick="toggleMulti(this,'casos')"><div class="opt-key">C</div><div><div class="opt-label">Responder consultas frecuentes automáticamente</div></div></div>
+              <div class="opt" data-val="Chatbot de WhatsApp para clientes" onclick="toggleMulti(this,'casos')"><div class="opt-key">D</div><div><div class="opt-label">Chatbot de WhatsApp para clientes</div></div></div>
+              <div class="opt" data-val="Listas y recordatorios por voz o texto" onclick="toggleMulti(this,'casos')"><div class="opt-key">E</div><div><div class="opt-label">Listas y recordatorios por voz o texto</div></div></div>
+              <div class="opt" data-val="Organizar agenda y prioridades" onclick="toggleMulti(this,'casos')"><div class="opt-key">F</div><div><div class="opt-label">Organizar agenda y prioridades del día</div></div></div>
+              <div class="opt" data-val="Digitalizar facturas y documentos" onclick="toggleMulti(this,'casos')"><div class="opt-key">G</div><div><div class="opt-label">Digitalizar facturas y documentos</div></div></div>
+              <div class="opt" data-val="Automatizar flujos entre apps" onclick="toggleMulti(this,'casos')"><div class="opt-key">H</div><div><div class="opt-label">Automatizar flujos entre aplicaciones</div></div></div>
+              <div class="opt" data-val="Dashboards y reportes del negocio" onclick="toggleMulti(this,'casos')"><div class="opt-key">I</div><div><div class="opt-label">Dashboards y reportes del negocio</div></div></div>
+              <div class="opt" data-val="Resumir documentos y mails largos" onclick="toggleMulti(this,'casos')"><div class="opt-key">J</div><div><div class="opt-label">Resumir documentos y mails largos</div></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Q10 Contacto -->
+        <div class="screen" id="s-q10">
+          <div class="screen-inner">
+            <div class="q-num">Última pregunta</div>
+            <h2 class="q-title">Necesito tus <em>datos de contacto</em></h2>
+            <p class="q-clarify">En los próximos días te voy a contactar con una propuesta personalizada. Dejame tu WhatsApp y tu mail para poder enviártela.</p>
+            
+            <div class="f-wrap" style="margin-bottom:10px;"><input class="f-input" id="q-whatsapp" type="tel" placeholder="Tu número de WhatsApp (ej: 1141234567)" /></div>
+            <div class="f-wrap"><input class="f-input" id="q-mail" type="email" placeholder="Tu dirección de mail" /></div>
+            <div class="err" id="err-q10">Ingresá al menos tu WhatsApp o tu mail para continuar.</div>
+          </div>
+        </div>
+
+        <!-- SUCCESS -->
+        <div class="screen" id="s-success">
+          <div class="screen-inner">
+            <div class="success-wrap">
+              <div class="success-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.4" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+              <h2 class="success-title">¡Muchas gracias<span id="success-nombre"></span>!</h2>
+              <p class="success-text">Recibí tus respuestas. En los próximos días te voy a contactar con una propuesta personalizada basada en todo lo que me contaste.</p>
+              <a class="success-wa" target="_blank" href="https://wa.me/541141796636">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347zM12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.117 1.528 5.847L.057 23.882a.5.5 0 0 0 .606.625l6.208-1.629A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z"/></svg>
+                Escribirme por WhatsApp · +54 11 4179-6636
+              </a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="bottombar" id="bottombar">
+      <div class="hint-enter"><span>Presioná</span><span class="key-badge">↵</span><span>para continuar</span></div>
+      <div class="btn-row">
+        <button class="btn btn-back" id="btn-back" onclick="goBack()" style="display:none;">← Atrás</button>
+        <button class="btn btn-next" id="btn-next" onclick="goNext()">Empezar →</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="spinner"></div>
+  <div style="font-size:14px;color:var(--muted);">Enviando tus respuestas...</div>
+</div>
+
+<script>
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw5zyFv25rUBQ39_yywykiI-Pxy1HYMMm4iIGNQXXz9EoRVY_z1JD3GiWJcnbd_V6eG/exec';
+  const data = {};
+  let navHistory = [];
+  let currentId = 'welcome';
+
+  function buildFlow() {
+    const uso = data.uso;
+    const flow = ['welcome','q1','q2'];
+    if (uso === 'personal') flow.push('q3a');
+    else if (uso === 'empresa') flow.push('q3b');
+    else if (uso === 'ambas') flow.push('q3a','q3b');
+    flow.push('q4','q5','q6','q7','q8','q9','q10');
+    return flow;
+  }
+
+  function totalSteps(){
+    const f = buildFlow();
+    return f.filter(s => s !== 'welcome').length;
+  }
+
+  function updateQNumbers(flow){
+    const qs = flow.filter(s => s !== 'welcome');
+    ['q3b','q4','q5','q6','q7','q8','q9'].forEach(id => {
+      const el = document.getElementById(id + '-num');
+      if (!el) return;
+      const pos = qs.indexOf(id) + 1;
+      if (pos > 0) el.textContent = pos;
+    });
+  }
+
+  function updateProgress(){
+    if (currentId === 'success') {
+      document.getElementById('prog').style.width = '100%';
+      document.getElementById('prog-pct').textContent = '100%';
+      return;
+    }
+    const flow = buildFlow();
+    const idx  = flow.indexOf(currentId);
+    const tot  = flow.length - 1;
+    const pct  = idx <= 0 ? 0 : Math.round((idx / tot) * 100);
+    document.getElementById('prog').style.width = pct + '%';
+    document.getElementById('prog-pct').textContent = pct + '%';
+    updateQNumbers(flow);
+  }
+
+  function goTo(nextId){
+    const cur = document.getElementById('s-' + currentId);
+    const nxt = document.getElementById('s-' + nextId);
+    if (!nxt) return;
+
+    if (cur){
+      cur.classList.remove('active');
+      cur.classList.add('exit-up');
+      setTimeout(() => cur.classList.remove('exit-up'), 260);
+    }
+
+    nxt.classList.add('active');
+    navHistory.push(currentId);
+    currentId = nextId;
+
+    const btnBack = document.getElementById('btn-back');
+    const btnNext = document.getElementById('btn-next');
+    const bar     = document.getElementById('bottombar');
+
+    btnBack.style.display = navHistory.length > 0 && nextId !== 'welcome' ? 'inline-flex' : 'none';
+
+    if (nextId === 'success') {
+      document.getElementById('prog').style.width = '100%';
+      document.getElementById('prog-pct').textContent = '100%';
+      bar.style.display = 'none';
+    } else if (nextId === 'welcome') {
+      btnNext.textContent = 'Empezar →';
+      btnNext.className   = 'btn btn-next';
+    } else if (nextId === 'q10') {
+      btnNext.textContent = 'Enviar diagnóstico ✓';
+      btnNext.className   = 'btn btn-submit';
+    } else {
+      btnNext.textContent = 'Siguiente →';
+      btnNext.className   = 'btn btn-next';
+    }
+
+    updateProgress();
+
+    setTimeout(() => {
+      const inp = nxt.querySelector('.f-input, .f-textarea');
+      if (inp) inp.focus();
+    }, 260);
+  }
+
+  function goBack(){
+    if (!navHistory.length) return;
+    const prev = navHistory.pop();
+    const cur  = document.getElementById('s-' + currentId);
+    const prv  = document.getElementById('s-' + prev);
+    if (cur) cur.classList.remove('active');
+    if (prv) prv.classList.add('active');
+    currentId = prev;
+
+    const btnBack = document.getElementById('btn-back');
+    const btnNext = document.getElementById('btn-next');
+
+    btnBack.style.display = navHistory.length > 0 && prev !== 'welcome' ? 'inline-flex' : 'none';
+    if (prev === 'welcome') {
+      btnNext.textContent = 'Empezar →';
+      btnNext.className   = 'btn btn-next';
+    } else if (prev === 'q10') {
+      btnNext.textContent = 'Enviar diagnóstico ✓';
+      btnNext.className   = 'btn btn-submit';
+    } else {
+      btnNext.textContent = 'Siguiente →';
+      btnNext.className   = 'btn btn-next';
+    }
+
+    updateProgress();
+  }
+
+  function showErr(id){ const el = document.getElementById(id); if (el) el.classList.add('show'); }
+  function hideErrors(){ document.querySelectorAll('.err').forEach(e => e.classList.remove('show')); }
+
+  function validate(id){
+    if (id === 'q1'){
+      const v = document.getElementById('q-nombre').value.trim();
+      if (!v){ showErr('err-q1'); return false; }
+      data.nombre = v;
+    }
+    if (id === 'q2'){
+      if (!data.uso){ showErr('err-q2'); return false; }
+    }
+    if (id === 'q3b'){
+      if (!data.rol){ showErr('err-q3b'); return false; }
+    }
+    if (id === 'q4'){
+      if (!data.experiencia){ showErr('err-q4'); return false; }
+    }
+    if (id === 'q6'){
+      if (!data.formato){ showErr('err-q6'); return false; }
+    }
+    if (id === 'q7'){
+      if (!data.objetivos || !data.objetivos.length){ showErr('err-q7'); return false; }
+    }
+    if (id === 'q8'){
+      const v = document.getElementById('q-minitest').value.trim();
+      if (!v){ showErr('err-q8'); return false; }
+      data.minitest = v;
+    }
+    if (id === 'q10'){
+      const whatsapp = document.getElementById('q-whatsapp').value.trim();
+      const mail = document.getElementById('q-mail').value.trim();
+      if (!whatsapp && !mail){ showErr('err-q10'); return false; }
+      data.contacto_pref = 'WhatsApp y Mail';
+      data.contacto_dato = (whatsapp ? 'WA: ' + whatsapp : '') + (whatsapp && mail ? ', ' : '') + (mail ? 'Mail: ' + mail : '');
+    }
+    return true;
+  }
+
+  function goNext(){
+    hideErrors();
+    const flow = buildFlow();
+    const idx  = flow.indexOf(currentId);
+
+    if (!validate(currentId)) return;
+
+    if (currentId === 'q10'){ sendForm(); return; }
+    if (idx < flow.length - 1) goTo(flow[idx + 1]);
+  }
+
+  function selectOpt(el,key){
+    el.closest('.options').querySelectorAll('.opt').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    data[key] = el.dataset.val;
+    hideErrors();
+    const auto = ['uso','rol','experiencia','formato','contacto_pref'];
+    if (auto.includes(key)) setTimeout(goNext, 250);
+  }
+
+  function toggleMulti(el,key){
+    el.classList.toggle('selected');
+    if (!data[key]) data[key] = [];
+    const val = el.dataset.val;
+    if (el.classList.contains('selected')){
+      if (!data[key].includes(val)) data[key].push(val);
+    } else {
+      data[key] = data[key].filter(v => v !== val);
+    }
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey){
+      const isTextarea = document.activeElement.tagName === 'TEXTAREA';
+      if (!isTextarea){ e.preventDefault(); goNext(); }
+    }
+  });
+
+  async function sendForm(){
+    data.nombre       = document.getElementById('q-nombre').value.trim();
+    data.minitest     = document.getElementById('q-minitest').value.trim();
+    const _wa = document.getElementById('q-whatsapp').value.trim();
+    const _mail = document.getElementById('q-mail').value.trim();
+    data.contacto_pref = 'WhatsApp y Mail';
+    data.contacto_dato = (_wa ? 'WA: ' + _wa : '') + (_wa && _mail ? ', ' : '') + (_mail ? 'Mail: ' + _mail : '');
+    data.timestamp    = new Date().toLocaleString('es-AR');
+
+    const payload = {
+      ...data,
+      uso_personal: (data.uso_personal || []).join(', '),
+      herramientas: (data.herramientas || []).join(', '),
+      objetivos:    (data.objetivos    || []).join(', '),
+      casos:        (data.casos        || []).join(', '),
+    };
+
+    document.getElementById('overlay').classList.add('show');
+
+    try{
+      const params = new URLSearchParams(payload).toString();
+      await fetch(SCRIPT_URL + "?" + params, {
+        method:"GET",
+        mode:"no-cors"
+      });
+      document.getElementById("overlay").classList.remove("show");
+      const nombre = (data.nombre || "").split(" ")[0];
+      document.getElementById("success-nombre").textContent = nombre ? ", " + nombre : "";
+      goTo("success");
+    }catch(err){
+      document.getElementById("overlay").classList.remove("show");
+      alert("Hubo un error al enviar. Por favor escribinos al +54 11 4179-6636.");
+    }
+  }
+
+  updateProgress();
+</script>
+</body>
+</html>
