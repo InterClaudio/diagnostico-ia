@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diagnóstico IA · Claudio González</title>
+
+  <!-- Bootstrap (pedido por vos) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
+
+  <!-- Tipografías -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,400&display=swap"
+    rel="stylesheet" />
+
+  <!-- Google Fonts mejorado: Inter + Playfair Display + Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap"
+    rel="stylesheet" />
+
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    :root {
+      /* Color palette */
+      --bg-deep: #03040d;
+      --bg-mid: #080c1a;
+      --surface: #0a0f1e;
+      --surface-2: #0e1428;
+      --surface-3: #111830;
+      --border-subtle: rgba(99, 102, 241, .12);
+      --border: rgba(99, 102, 241, .22);
+      --border-hover: rgba(148, 163, 184, .5);
+
+      --text: #eef0f7;
+      --text-2: rgba(200, 208, 228, .85);
+      --muted: rgba(148, 163, 184, .75);
+      --muted-2: rgba(100, 116, 139, .9);
+
+      --accent: #6366f1;
+      --accent-2: #818cf8;
+      --accent-g: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      --accent-soft: rgba(99, 102, 241, .14);
+      --accent-glow: rgba(99, 102, 241, .30);
+      --accent-border: rgba(99, 102, 241, .45);
+
+      --green: #22c55e;
+      --green-soft: rgba(34, 197, 94, .15);
+      --green-border: rgba(34, 197, 94, .45);
+
+      --font: "Plus Jakarta Sans", "Inter", system-ui, -apple-system, sans-serif;
+      --font-d: "Playfair Display", Georgia, serif;
+      --ease: cubic-bezier(.4, 0, .2, 1);
+      --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+
+      /* Spacing */
+      --r-sm: 8px;
+      --r-md: 14px;
+      --r-lg: 18px;
+      --r-xl: 24px;
+    }
+
+    /* ─── Base ──────────────────────────────────────────────── */
+    body {
+      font-family: var(--font);
+      background-color: var(--bg-deep);
+      background-image:
+        radial-gradient(ellipse 80% 55% at 70% -10%, rgba(99, 102, 241, .18) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at -10% 90%, rgba(34, 197, 94, .10) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 40% at 50% 50%, rgba(15, 23, 60, .6) 0%, transparent 70%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Subtle noise texture overlay */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+      background-size: 200px 200px;
+      pointer-events: none;
+      z-index: 0;
+      opacity: .6;
+    }
+
+    /* ─── App Shell ─────────────────────────────────────────── */
+    .app-shell {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 1060px;
+      margin: 28px auto;
+      padding: 0 18px 28px;
+    }
+
+    .app-frame {
+      border-radius: 26px;
+      border: 1px solid var(--border);
+      background:
+        linear-gradient(160deg, rgba(20, 28, 60, .98) 0%, rgba(8, 12, 26, .99) 60%);
+      box-shadow:
+        0 0 0 1px rgba(0, 0, 0, .6),
+        0 32px 80px rgba(2, 4, 18, .85),
+        0 8px 24px rgba(99, 102, 241, .08),
+        inset 0 1px 0 rgba(255, 255, 255, .04);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ─── Top Bar ───────────────────────────────────────────── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 28px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: linear-gradient(90deg, rgba(10, 15, 35, .9), rgba(8, 12, 26, .9));
+      backdrop-filter: blur(8px);
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .brand-main {
+      font-size: 11px;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+      font-family: var(--font);
+    }
+
+    .brand-sub {
+      font-size: 13.5px;
+      color: var(--text-2);
+      letter-spacing: .01em;
+    }
+
+    .brand-sub span {
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* Progress */
+    .progress-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .progress-label {
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: .18em;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .progress-track {
+      width: 140px;
+      height: 3px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .05);
+      border: 1px solid rgba(99, 102, 241, .15);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent-g);
+      width: 0%;
+      border-radius: 999px;
+      transition: width .55s var(--ease);
+      box-shadow: 0 0 8px rgba(99, 102, 241, .5);
+    }
+
+    .progress-pct {
+      font-size: 11.5px;
+      color: var(--accent-2);
+      min-width: 30px;
+      text-align: right;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ─── Main Content ──────────────────────────────────────── */
+    .main {
+      position: relative;
+      flex: 1;
+    }
+
+    .main-scroll {
+      padding: 28px 28px 30px;
+    }
+
+    .screen {
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      transition: opacity .28s var(--ease), transform .28s var(--ease);
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    .screen.active,
+    .screen.exit-up {
+      display: flex;
+    }
+
+    .screen.active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .screen.exit-up {
+      opacity: 0;
+      transform: translateY(-12px);
+    }
+
+    .screen-inner {
+      width: 100%;
+      max-width: 680px;
+      background: linear-gradient(160deg, var(--surface-2) 0%, var(--surface) 100%);
+      border-radius: 20px;
+      padding: 28px 28px 24px;
+      border: 1px solid var(--border);
+      box-shadow:
+        0 20px 50px rgba(2, 4, 18, .7),
+        0 4px 16px rgba(99, 102, 241, .06),
+        inset 0 1px 0 rgba(255, 255, 255, .035);
+    }
+
+    /* ─── Question Header ───────────────────────────────────── */
+    .q-num {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10.5px;
+      letter-spacing: .24em;
+      text-transform: uppercase;
+      color: var(--accent-2);
+      font-weight: 700;
+      margin-bottom: 14px;
+      font-family: var(--font);
+    }
+
+    .q-num::before {
+      content: "";
+      display: inline-block;
+      width: 18px;
+      height: 2px;
+      border-radius: 999px;
+      background: var(--accent-g);
+    }
+
+    .q-title {
+      font-family: var(--font-d);
+      font-size: clamp(24px, 3.4vw, 33px);
+      line-height: 1.18;
+      margin-bottom: 12px;
+      color: var(--text);
+      letter-spacing: -.02em;
+    }
+
+    .q-title em {
+      font-style: italic;
+      background: var(--accent-g);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .q-clarify {
+      font-size: 14.5px;
+      color: var(--muted);
+      line-height: 1.75;
+      margin-bottom: 24px;
+      max-width: 520px;
+      font-weight: 400;
+    }
+
+    /* ─── Options ───────────────────────────────────────────── */
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      margin-bottom: 22px;
+    }
+
+    .opt {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 13px 16px;
+      background: var(--surface);
+      border-radius: var(--r-md);
+      border: 1px solid rgba(30, 42, 80, .9);
+      cursor: pointer;
+      transition: border-color .18s var(--ease), background .18s var(--ease), box-shadow .18s var(--ease), transform .15s var(--ease-spring);
+      user-select: none;
+    }
+
+    .opt:hover {
+      border-color: var(--border-hover);
+      background: var(--surface-2);
+      transform: translateX(2px);
+    }
+
+    .opt:active {
+      transform: scale(.99);
+    }
+
+    .opt.selected {
+      border-color: var(--accent-border);
+      background: linear-gradient(135deg, rgba(99, 102, 241, .08), rgba(139, 92, 246, .06));
+      box-shadow:
+        0 0 0 1px var(--accent-soft),
+        0 6px 20px rgba(99, 102, 241, .18);
+    }
+
+    .opt.selected:hover {
+      transform: translateX(2px);
+    }
+
+    .opt-key {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      border: 1px solid rgba(75, 85, 120, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted-2);
+      flex-shrink: 0;
+      font-family: var(--font);
+      letter-spacing: 0;
+      transition: background .18s, border-color .18s, color .18s;
+    }
+
+    .opt.selected .opt-key {
+      background: var(--accent-g);
+      border-color: transparent;
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, .4);
+    }
+
+    .opt-label {
+      font-size: 14.5px;
+      font-weight: 500;
+      color: var(--text-2);
+      transition: color .18s;
+    }
+
+    .opt.selected .opt-label {
+      color: var(--text);
+    }
+
+    .opt-sub {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+
+    .multi-hint {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: .15em;
+      color: var(--muted-2);
+      margin-bottom: 10px;
+      font-weight: 600;
+      border: 1px solid rgba(75, 85, 120, .4);
+      border-radius: 999px;
+      padding: 3px 10px;
+      background: rgba(255, 255, 255, .02);
+    }
+
+    .multi-hint::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--accent-2);
+      flex-shrink: 0;
+    }
+
+    /* ─── Inputs ────────────────────────────────────────────── */
+    .f-wrap {
+      margin-bottom: 10px;
+    }
+
+    .f-input,
+    .f-textarea {
+      width: 100%;
+      background: var(--surface);
+      border-radius: var(--r-md);
+      border: 1px solid rgba(30, 42, 80, .9);
+      padding: 13px 16px;
+      font-size: 14.5px;
+      font-family: var(--font);
+      color: var(--text);
+      outline: none;
+      transition: border-color .2s var(--ease), box-shadow .2s var(--ease), background .2s;
+      caret-color: var(--accent-2);
+    }
+
+    .f-input::placeholder,
+    .f-textarea::placeholder {
+      color: var(--muted-2);
+    }
+
+    .f-input:focus,
+    .f-textarea:focus {
+      border-color: var(--accent-border);
+      background: var(--surface-2);
+      box-shadow:
+        0 0 0 3px var(--accent-soft),
+        0 4px 12px rgba(99, 102, 241, .12);
+    }
+
+    .f-textarea {
+      min-height: 130px;
+      resize: none;
+      line-height: 1.6;
+    }
+
+    /* ─── Bottom Bar ────────────────────────────────────────── */
+    .bottombar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 28px 16px;
+      border-top: 1px solid var(--border-subtle);
+      background: linear-gradient(90deg, rgba(8, 12, 26, .95), rgba(10, 15, 35, .95));
+      backdrop-filter: blur(8px);
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .btn {
+      border-radius: 999px;
+      font-size: 13.5px;
+      font-weight: 600;
+      padding: 9px 22px;
+      cursor: pointer;
+      transition: opacity .18s, transform .15s var(--ease-spring), box-shadow .2s;
+      font-family: var(--font);
+      letter-spacing: .01em;
+    }
+
+    .btn:active {
+      transform: scale(.96);
+    }
+
+    .btn-back {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid rgba(75, 85, 120, .6);
+      transition: border-color .18s, color .18s, background .18s;
+    }
+
+    .btn-back:hover {
+      border-color: var(--border-hover);
+      color: var(--text-2);
+      background: rgba(255, 255, 255, .03);
+    }
+
+    .btn-next {
+      background: var(--accent-g);
+      color: #fff;
+      border: none;
+      box-shadow:
+        0 8px 24px rgba(99, 102, 241, .35),
+        0 2px 8px rgba(99, 102, 241, .2),
+        inset 0 1px 0 rgba(255, 255, 255, .15);
+      transition: box-shadow .2s, transform .15s var(--ease-spring), opacity .18s;
+    }
+
+    .btn-next:hover {
+      box-shadow:
+        0 12px 30px rgba(99, 102, 241, .50),
+        0 4px 12px rgba(99, 102, 241, .30),
+        inset 0 1px 0 rgba(255, 255, 255, .15);
+      transform: translateY(-1px);
+    }
+
+    .btn-next:active {
+      transform: scale(.96);
+    }
+
+    .btn-next:disabled {
+      opacity: .38;
+      box-shadow: none;
+      transform: none;
+      cursor: not-allowed;
+    }
+
+    .btn-submit {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #052e16;
+      border: none;
+      font-weight: 700;
+      box-shadow:
+        0 8px 24px rgba(34, 197, 94, .35),
+        inset 0 1px 0 rgba(255, 255, 255, .2);
+    }
+
+    .btn-submit:hover {
+      box-shadow: 0 12px 30px rgba(34, 197, 94, .50);
+      transform: translateY(-1px);
+    }
+
+    /* ─── Keyboard hint ─────────────────────────────────────── */
+    .hint-enter {
+      font-size: 12px;
+      color: var(--muted-2);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .key-badge {
+      width: 24px;
+      height: 20px;
+      border-radius: 5px;
+      border: 1px solid rgba(75, 85, 120, .6);
+      background: rgba(255, 255, 255, .03);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    /* ─── Error ─────────────────────────────────────────────── */
+    .err {
+      font-size: 12.5px;
+      color: #fb7185;
+      display: none;
+      margin-top: 8px;
+      padding: 8px 12px;
+      border-radius: var(--r-sm);
+      background: rgba(251, 113, 133, .08);
+      border: 1px solid rgba(251, 113, 133, .2);
+    }
+
+    .err.show {
+      display: block;
+    }
+
+    /* ─── Welcome Screen ────────────────────────────────────── */
+    .welcome-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 5px 14px;
+      border: 1px solid var(--green-border);
+      background: var(--green-soft);
+      font-size: 11px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: #86efac;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    .welcome-badge .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 10px var(--green);
+      animation: pulse-dot 2.2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+
+      0%,
+      100% {
+        opacity: 1;
+        box-shadow: 0 0 10px var(--green);
+      }
+
+      50% {
+        opacity: .7;
+        box-shadow: 0 0 18px var(--green);
+      }
+    }
+
+    .welcome-title {
+      font-family: var(--font-d);
+      font-size: clamp(30px, 4vw, 44px);
+      line-height: 1.08;
+      margin-bottom: 16px;
+      letter-spacing: -.025em;
+    }
+
+    .welcome-title em {
+      background: var(--accent-g);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-style: italic;
+    }
+
+    .welcome-desc {
+      font-size: 15px;
+      color: var(--muted);
+      line-height: 1.78;
+      max-width: 510px;
+      margin-bottom: 16px;
+    }
+
+    .welcome-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+      margin-top: 6px;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
+      color: var(--text-2);
+      border: 1px solid rgba(75, 85, 120, .35);
+      border-radius: 999px;
+      padding: 5px 12px;
+      background: rgba(255, 255, 255, .025);
+    }
+
+    .meta-item svg {
+      color: var(--accent-2);
+    }
+
+    .wa-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
+      text-decoration: none;
+      color: #86efac;
+      border-radius: 999px;
+      padding: 7px 14px;
+      border: 1px solid var(--green-border);
+      background: var(--green-soft);
+      font-weight: 500;
+      transition: background .18s, box-shadow .18s;
+    }
+
+    .wa-link:hover {
+      background: rgba(34, 197, 94, .22);
+      box-shadow: 0 4px 16px rgba(34, 197, 94, .2);
+    }
+
+    /* ─── Success Screen ────────────────────────────────────── */
+    .success-wrap {
+      text-align: center;
+      max-width: 440px;
+      margin: 0 auto;
+    }
+
+    .success-icon {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 1px solid var(--green-border);
+      background: var(--green-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 22px;
+      box-shadow: 0 0 32px rgba(34, 197, 94, .2);
+      animation: pop-in .5s var(--ease-spring) forwards;
+    }
+
+    @keyframes pop-in {
+      from {
+        transform: scale(.6);
+        opacity: 0;
+      }
+
+      to {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .success-title {
+      font-family: var(--font-d);
+      font-size: 32px;
+      margin-bottom: 12px;
+      letter-spacing: -.02em;
+    }
+
+    .success-text {
+      font-size: 15px;
+      color: var(--muted);
+      line-height: 1.75;
+      margin-bottom: 22px;
+    }
+
+    .success-wa {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      text-decoration: none;
+      padding: 12px 20px;
+      border-radius: 999px;
+      border: 1px solid var(--green-border);
+      color: #86efac;
+      background: var(--green-soft);
+      font-weight: 600;
+      font-size: 14px;
+      transition: background .18s, box-shadow .18s;
+    }
+
+    .success-wa:hover {
+      background: rgba(34, 197, 94, .22);
+      box-shadow: 0 6px 20px rgba(34, 197, 94, .25);
+    }
+
+    /* ─── Loading Overlay ───────────────────────────────────── */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 4, 13, .85);
+      backdrop-filter: blur(6px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .overlay.show {
+      display: flex;
+    }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 3px solid rgba(99, 102, 241, .2);
+      border-top-color: var(--accent);
+      animation: spin .75s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* ─── Responsive ────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .app-shell {
+        margin: 8px auto;
+        padding: 0 10px 16px;
+      }
+
+      .topbar {
+        padding: 12px 16px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      .main-scroll {
+        padding: 18px 16px 22px;
+      }
+
+      .screen-inner {
+        padding: 20px 18px 18px;
+        border-radius: var(--r-lg);
+      }
+
+      .bottombar {
+        padding: 10px 16px 14px;
+      }
+
+      .hint-enter {
+        display: none;
+      }
+
+      .btn {
+        padding: 9px 18px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .app-frame {
+        border-radius: 18px;
+      }
+
+      .screen-inner {
+        border-radius: var(--r-md);
+      }
+
+      .q-title {
+        font-size: clamp(22px, 6.5vw, 28px);
+      }
+
+      .opt {
+        gap: 11px;
+        padding: 11px 13px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="app-shell">
+    <div class="app-frame">
+
+      <div class="topbar">
+        <div class="brand">
+          <div class="brand-main">Entrenamiento en Inteligencia Artificial</div>
+          <div class="brand-sub">Plan de acción personalizado</div>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-label">Progreso</div>
+          <div class="progress-track">
+            <div class="progress-fill" id="prog"></div>
+          </div>
+          <div class="progress-pct" id="prog-pct">0%</div>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="main-scroll" id="main">
+
+          <!-- WELCOME -->
+          <div class="screen active" id="s-welcome">
+            <div class="screen-inner">
+              <h1 class="welcome-title"><em>Diagnóstico</em><br>preliminar</h1>
+              <p class="welcome-desc">Hola, soy Claudio. Antes que nada, felicitaciones por encarar este entrenamiento
+                en Inteligencia Artificial: es una forma inteligente de ganar claridad y ventaja en lo que viene.</p>
+              <p class="welcome-desc" style="margin-top:10px;">Este diagnóstico me ayuda a entender desde dónde
+                arrancás, qué querés lograr y cómo trabajás — para armarte un plan que tenga sentido para vos, no para
+                cualquier persona.</p>
+              <p class="welcome-desc" style="margin-top:10px;">Son 8 a 10 preguntas, tarda entre 5 y 10 minutos, y no
+                hay respuestas incorrectas.</p>
+
+              <div class="welcome-meta">
+                <div class="meta-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 6v6l4 2" />
+                  </svg>
+                  5–10 minutos
+                </div>
+                <div class="meta-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                  Respuestas privadas
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- Q1 Nombre -->
+          <div class="screen" id="s-q1">
+            <div class="screen-inner">
+              <div class="q-num">Pregunta 1</div>
+              <h2 class="q-title">¿Cómo te <em>llamás?</em></h2>
+
+              <div class="f-wrap"><input class="f-input" id="q-nombre" type="text" placeholder="Tu nombre y apellido..."
+                  autocomplete="name" /></div>
+              <div class="err" id="err-q1">Por favor ingresá tu nombre para continuar.</div>
+            </div>
+          </div>
+
+          <!-- Q2 Uso principal -->
+          <div class="screen" id="s-q2">
+            <div class="screen-inner">
+              <div class="q-num">Pregunta 2</div>
+              <h2 class="q-title">¿Dónde te imaginás <em>usando la IA?</em></h2>
+              <p class="q-clarify">En qué ámbito de tu vida querés aplicarla.</p>
+              <div class="options" id="uso-opts">
+                <div class="opt" data-val="personal" onclick="selectOpt(this,'uso')">
+                  <div class="opt-key">A</div>
+                  <div>
+                    <div class="opt-label">Solo en mi vida personal</div>
+                    <div class="opt-sub">Organización, aprendizaje, escritura, productividad diaria</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="empresa" onclick="selectOpt(this,'uso')">
+                  <div class="opt-key">B</div>
+                  <div>
+                    <div class="opt-label">Solo en la empresa</div>
+                    <div class="opt-sub">Trabajo, procesos, clientes, operación del negocio</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="ambas" onclick="selectOpt(this,'uso')">
+                  <div class="opt-key">C</div>
+                  <div>
+                    <div class="opt-label">En ambas cosas</div>
+                    <div class="opt-sub">Tanto en lo personal como en la empresa</div>
+                  </div>
+                </div>
+              </div>
+              <div class="err" id="err-q2">Seleccioná una opción para continuar.</div>
+            </div>
+          </div>
+
+          <!-- Q3A Uso personal -->
+          <div class="screen" id="s-q3a">
+            <div class="screen-inner">
+              <div class="q-num">Pregunta 3</div>
+              <h2 class="q-title">¿En qué aspectos de tu <em>vida personal?</em></h2>
+              <p class="q-clarify">Quiero entender qué parte de tu vida cotidiana te gustaría mejorar con IA. Esto me
+                ayuda a traer ejemplos que tengan sentido para vos.</p>
+              <div class="multi-hint">Podés elegir más de uno</div>
+              <div class="options" id="personal-opts">
+                <div class="opt" data-val="Organización personal y agenda" onclick="toggleMulti(this,'uso_personal')">
+                  <div class="opt-key">A</div>
+                  <div>
+                    <div class="opt-label">Organización personal y agenda</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Redacción de mensajes, mails o textos"
+                  onclick="toggleMulti(this,'uso_personal')">
+                  <div class="opt-key">B</div>
+                  <div>
+                    <div class="opt-label">Redacción de mensajes, mails o textos</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Aprendizaje y curiosidad general" onclick="toggleMulti(this,'uso_personal')">
+                  <div class="opt-key">C</div>
+                  <div>
+                    <div class="opt-label">Aprendizaje y curiosidad general</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Búsqueda de información eficiente"
+                  onclick="toggleMulti(this,'uso_personal')">
+                  <div class="opt-key">D</div>
+                  <div>
+                    <div class="opt-label">Búsqueda de información más eficiente</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Productividad y gestión de tareas"
+                  onclick="toggleMulti(this,'uso_personal')">
+                  <div class="opt-key">E</div>
+                  <div>
+                    <div class="opt-label">Productividad y gestión de tareas</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Q3B Rol empresa -->
+          <div class="screen" id="s-q3b">
+            <div class="screen-inner">
+              <div class="q-num">Pregunta <span id="q3b-num">3</span></div>
+              <h2 class="q-title">¿Cuál es tu <em>función</em> en la empresa?</h2>
+              <p class="q-clarify">No es lo mismo hablarle al que está en la operación diaria que al que toma
+                decisiones. Saber tu función me permite traer ejemplos que tengan sentido para lo que vos hacés.</p>
+              <div class="options" id="rol-opts">
+                <div class="opt" data-val="Dirección / toma de decisiones" onclick="selectOpt(this,'rol')">
+                  <div class="opt-key">A</div>
+                  <div>
+                    <div class="opt-label">Dirección / toma de decisiones</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Operación / producción" onclick="selectOpt(this,'rol')">
+                  <div class="opt-key">B</div>
+                  <div>
+                    <div class="opt-label">Operación / producción</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Administración / facturación / finanzas" onclick="selectOpt(this,'rol')">
+                  <div class="opt-key">C</div>
+                  <div>
+                    <div class="opt-label">Administración / facturación / finanzas</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Comercial / atención a clientes" onclick="selectOpt(this,'rol')">
+                  <div class="opt-key">D</div>
+                  <div>
+                    <div class="opt-label">Comercial / atención a clientes</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Logística" onclick="selectOpt(this,'rol')">
+                  <div class="opt-key">E</div>
+                  <div>
+                    <div class="opt-label">Logística</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Mixto" onclick="selectOpt(this,'rol')">
+                  <div class="opt-key">F</div>
+                  <div>
+                    <div class="opt-label">Mixto — me ocupo de varias cosas</div>
+                  </div>
+                </div>
+              </div>
+              <div class="err" id="err-q3b">Seleccioná tu función para continuar.</div>
+            </div>
+          </div>
+
+          <!-- Q4 Experiencia -->
+          <div class="screen" id="s-q4">
+            <div class="screen-inner">
+              <div class="q-num">Pregunta <span id="q4-num">4</span></div>
+              <h2 class="q-title">¿Cuánto <em>sabés de IA</em> hoy?</h2>
+              <p class="q-clarify">Elegí la opción que más se acerca a tu realidad.</p>
+              <div class="options" id="exp-opts">
+                <div class="opt" data-val="Nunca usé nada" onclick="selectOpt(this,'experiencia')">
+                  <div class="opt-key">A</div>
+                  <div>
+                    <div class="opt-label">Nunca usé nada</div>
+                    <div class="opt-sub">Es territorio completamente nuevo para mí</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Lo probé una o dos veces" onclick="selectOpt(this,'experiencia')">
+                  <div class="opt-key">B</div>
+                  <div>
+                    <div class="opt-label">Lo probé una o dos veces</div>
+                    <div class="opt-sub">Pero no le encontré la vuelta</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Lo uso de vez en cuando" onclick="selectOpt(this,'experiencia')">
+                  <div class="opt-key">C</div>
+                  <div>
+                    <div class="opt-label">Lo uso de vez en cuando</div>
+                    <div class="opt-sub">Sin mucho método</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Lo uso seguido y me manejo bien" onclick="selectOpt(this,'experiencia')">
+                  <div class="opt-key">D</div>
+                  <div>
+                    <div class="opt-label">Lo uso seguido y me manejo bien</div>
+                    <div class="opt-sub">Tengo cierta práctica</div>
+                  </div>
+                </div>
+              </div>
+              <div class="err" id="err-q4">Seleccioná tu nivel de experiencia.</div>
+            </div>
+          </div>
+
+          <!-- Q5 Herramientas -->
+          <div class="screen" id="s-q5">
+            <div class="screen-inner">
+              <div class="q-num">Pregunta <span id="q5-num">5</span></div>
+              <h2 class="q-title">¿Qué <em>herramientas</em> conocés?</h2>
+              <p class="q-clarify">Marcá las que conocés, aunque sea de nombre.</p>
+              <div class="multi-hint">Podés elegir más de uno</div>
+              <div class="options" id="herr-opts">
+                <div class="opt" data-val="ChatGPT (OpenAI)" onclick="toggleMulti(this,'herramientas')">
+                  <div class="opt-key">A</div>
+                  <div>
+                    <div class="opt-label">ChatGPT</div>
+                    <div class="opt-sub">OpenAI</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Gemini (Google)" onclick="toggleMulti(this,'herramientas')">
+                  <div class="opt-key">B</div>
+                  <div>
+                    <div class="opt-label">Gemini</div>
+                    <div class="opt-sub">Google</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Copilot (Microsoft)" onclick="toggleMulti(this,'herramientas')">
+                  <div class="opt-key">C</div>
+                  <div>
+                    <div class="opt-label">Copilot</div>
+                    <div class="opt-sub">Microsoft</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Claude (Anthropic)" onclick="toggleMulti(this,'herramientas')">
+                  <div class="opt-key">D</div>
+                  <div>
+                    <div class="opt-label">Claude</div>
+                    <div class="opt-sub">Anthropic</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Ninguna todavía" onclick="toggleMulti(this,'herramientas')">
+                  <div class="opt-key">E</div>
+                  <div>
+                    <div class="opt-label">Ninguna todavía</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Q6 Formato -->
+          <div class="screen" id="s-q6">
+            <div class="screen-inner">
+              <div class="q-num">Pregunta <span id="q6-num">6</span></div>
+              <h2 class="q-title">¿Qué <em>formato</em> buscás?</h2>
+              <p class="q-clarify">Elegí el formato que mejor se adapta a lo que necesitás.</p>
+              <div class="options" id="formato-opts">
+                <div class="opt" data-val="Charlas de consulta (1-2 sesiones)" onclick="selectOpt(this,'formato')">
+                  <div class="opt-key">A</div>
+                  <div>
+                    <div class="opt-label">Charlas de consulta</div>
+                    <div class="opt-sub">1 o 2 sesiones para despejar dudas puntuales</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Programa estructurado (varias semanas)" onclick="selectOpt(this,'formato')">
+                  <div class="opt-key">B</div>
+                  <div>
+                    <div class="opt-label">Programa de aprendizaje estructurado</div>
+                    <div class="opt-sub">Varias semanas, con práctica y progresión</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="No sé todavía" onclick="selectOpt(this,'formato')">
+                  <div class="opt-key">C</div>
+                  <div>
+                    <div class="opt-label">Todavía no lo sé</div>
+                    <div class="opt-sub">Necesito que me orientes</div>
+                  </div>
+                </div>
+              </div>
+              <div class="err" id="err-q6">Seleccioná un formato para continuar.</div>
+            </div>
+          </div>
+
+          <!-- Q7 Objetivos -->
+          <div class="screen" id="s-q7">
+            <div class="screen-inner">
+              <div class="q-num">Pregunta <span id="q7-num">7</span></div>
+              <h2 class="q-title">¿Qué querés <em>poder hacer</em> al terminar?</h2>
+              <p class="q-clarify">Quiero conocer tus expectativas del entrenamiento.</p>
+              <div class="multi-hint">Elegí todo lo que resuene con vos</div>
+              <div class="options" id="obj-opts">
+                <div class="opt" data-val="Entender qué es la IA y para qué sirve"
+                  onclick="toggleMulti(this,'objetivos')">
+                  <div class="opt-key">A</div>
+                  <div>
+                    <div class="opt-label">Entender realmente qué es la IA (y para qué no sirve)</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Usar ChatGPT o Gemini con criterio" onclick="toggleMulti(this,'objetivos')">
+                  <div class="opt-key">B</div>
+                  <div>
+                    <div class="opt-label">Usar ChatGPT o Gemini con criterio propio</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Escribir buenos prompts" onclick="toggleMulti(this,'objetivos')">
+                  <div class="opt-key">C</div>
+                  <div>
+                    <div class="opt-label">Escribir buenos prompts y obtener resultados útiles</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Automatizar tareas repetitivas" onclick="toggleMulti(this,'objetivos')">
+                  <div class="opt-key">D</div>
+                  <div>
+                    <div class="opt-label">Automatizar tareas repetitivas que me consumen tiempo</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Ideas concretas para la empresa" onclick="toggleMulti(this,'objetivos')">
+                  <div class="opt-key">E</div>
+                  <div>
+                    <div class="opt-label">Encontrar ideas concretas de aplicación en mi empresa</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Privacidad y seguridad con IA" onclick="toggleMulti(this,'objetivos')">
+                  <div class="opt-key">F</div>
+                  <div>
+                    <div class="opt-label">Entender cómo proteger mi privacidad al usar IA</div>
+                  </div>
+                </div>
+              </div>
+              <div class="err" id="err-q7">Elegí al menos un objetivo para continuar.</div>
+            </div>
+          </div>
+
+          <!-- Q8 Mini test -->
+          <div class="screen" id="s-q8">
+            <div class="screen-inner">
+              <div class="q-num">Pregunta <span id="q8-num">8</span></div>
+              <h2 class="q-title">¿Qué le pedirías a una IA <em>hoy mismo?</em></h2>
+              <p class="q-clarify">Esto no es un examen. Lo que quiero ver es qué tipo de problema querés resolver y
+                cómo te expresás. Puede ser del trabajo, algo personal, lo que se te ocurra.</p>
+              <div class="f-wrap"><textarea class="f-textarea" id="q-minitest"
+                  placeholder="Escribí lo que se te ocurra..."></textarea></div>
+              <div class="err" id="err-q8">Escribí algo para continuar — no hay respuesta incorrecta.</div>
+            </div>
+          </div>
+
+          <!-- Q9 Casos uso -->
+          <div class="screen" id="s-q9">
+            <div class="screen-inner">
+              <div class="q-num">Pregunta <span id="q9-num">9</span> <span
+                  style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:rgba(148,163,184,.95);margin-left:4px;">Opcional</span>
+              </div>
+              <h2 class="q-title">¿En qué situaciones te <em>imaginás</em> usando IA?</h2>
+              <p class="q-clarify">Opcional — pero me ayuda a personalizar mejor el plan.</p>
+              <div class="multi-hint">Podés elegir más de uno</div>
+              <div class="options" id="casos-opts">
+                <div class="opt" data-val="Redactar mails y mensajes más rápido" onclick="toggleMulti(this,'casos')">
+                  <div class="opt-key">A</div>
+                  <div>
+                    <div class="opt-label">Redactar mails y mensajes más rápido</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Armar presupuestos y propuestas" onclick="toggleMulti(this,'casos')">
+                  <div class="opt-key">B</div>
+                  <div>
+                    <div class="opt-label">Armar presupuestos y propuestas</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Responder consultas frecuentes automáticamente"
+                  onclick="toggleMulti(this,'casos')">
+                  <div class="opt-key">C</div>
+                  <div>
+                    <div class="opt-label">Responder consultas frecuentes automáticamente</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Chatbot de WhatsApp para clientes" onclick="toggleMulti(this,'casos')">
+                  <div class="opt-key">D</div>
+                  <div>
+                    <div class="opt-label">Chatbot de WhatsApp para clientes</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Listas y recordatorios por voz o texto" onclick="toggleMulti(this,'casos')">
+                  <div class="opt-key">E</div>
+                  <div>
+                    <div class="opt-label">Listas y recordatorios por voz o texto</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Organizar agenda y prioridades" onclick="toggleMulti(this,'casos')">
+                  <div class="opt-key">F</div>
+                  <div>
+                    <div class="opt-label">Organizar agenda y prioridades del día</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Digitalizar facturas y documentos" onclick="toggleMulti(this,'casos')">
+                  <div class="opt-key">G</div>
+                  <div>
+                    <div class="opt-label">Digitalizar facturas y documentos</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Automatizar flujos entre apps" onclick="toggleMulti(this,'casos')">
+                  <div class="opt-key">H</div>
+                  <div>
+                    <div class="opt-label">Automatizar flujos entre aplicaciones</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Dashboards y reportes del negocio" onclick="toggleMulti(this,'casos')">
+                  <div class="opt-key">I</div>
+                  <div>
+                    <div class="opt-label">Dashboards y reportes del negocio</div>
+                  </div>
+                </div>
+                <div class="opt" data-val="Resumir documentos y mails largos" onclick="toggleMulti(this,'casos')">
+                  <div class="opt-key">J</div>
+                  <div>
+                    <div class="opt-label">Resumir documentos y mails largos</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Q10 Contacto -->
+          <div class="screen" id="s-q10">
+            <div class="screen-inner">
+              <div class="q-num">Última pregunta</div>
+              <h2 class="q-title">Necesito tus <em>datos de contacto</em></h2>
+              <p class="q-clarify">En los próximos días te voy a contactar con una propuesta personalizada. Dejame tu
+                WhatsApp y tu mail para poder enviártela.</p>
+
+              <div class="f-wrap" style="margin-bottom:10px;"><input class="f-input" id="q-whatsapp" type="tel"
+                  placeholder="Tu número de WhatsApp (ej: 1141234567)" /></div>
+              <div class="f-wrap"><input class="f-input" id="q-mail" type="email" placeholder="Tu dirección de mail" />
+              </div>
+              <div class="err" id="err-q10">Ingresá al menos tu WhatsApp o tu mail para continuar.</div>
+              <div class="err" id="err-q10-mail">El mail que ingresaste no parece válido. Revisá que tenga el formato
+                correcto (ej: nombre@dominio.com).</div>
+            </div>
+          </div>
+
+          <!-- SUCCESS -->
+          <div class="screen" id="s-success">
+            <div class="screen-inner">
+              <div class="success-wrap">
+                <div class="success-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22c55e"
+                    stroke-width="2.4" stroke-linecap="round">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg></div>
+                <h2 class="success-title">¡Muchas gracias<span id="success-nombre"></span>!</h2>
+                <p class="success-text">Recibí tus respuestas. En los próximos días te voy a contactar con una propuesta
+                  personalizada basada en todo lo que me contaste.</p>
+                <a class="success-wa" target="_blank" href="https://wa.me/541141796636">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                      d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347zM12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.117 1.528 5.847L.057 23.882a.5.5 0 0 0 .606.625l6.208-1.629A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z" />
+                  </svg>
+                  Escribirme por WhatsApp · +54 11 4179-6636
+                </a>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="bottombar" id="bottombar">
+        <div class="hint-enter"><span>Presioná</span><span class="key-badge">↵</span><span>para continuar</span></div>
+        <div class="btn-row">
+          <button class="btn btn-back" id="btn-back" onclick="goBack()" style="display:none;">← Atrás</button>
+          <button class="btn btn-next" id="btn-next" onclick="goNext()">Empezar →</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="spinner"></div>
+    <div style="font-size:14px;color:var(--muted);">Enviando tus respuestas...</div>
+  </div>
+
+  <script>
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw5zyFv25rUBQ39_yywykiI-Pxy1HYMMm4iIGNQXXz9EoRVY_z1JD3GiWJcnbd_V6eG/exec';
+    const data = {};
+    let navHistory = [];
+    let currentId = 'welcome';
+
+    function buildFlow() {
+      const uso = data.uso;
+      const flow = ['welcome', 'q1', 'q2'];
+      if (uso === 'personal') flow.push('q3a');
+      else if (uso === 'empresa') flow.push('q3b');
+      else if (uso === 'ambas') flow.push('q3a', 'q3b');
+      flow.push('q4', 'q5', 'q6', 'q7', 'q8', 'q9', 'q10');
+      return flow;
+    }
+
+    function totalSteps() {
+      const f = buildFlow();
+      return f.filter(s => s !== 'welcome').length;
+    }
+
+    function updateQNumbers(flow) {
+      const qs = flow.filter(s => s !== 'welcome');
+      ['q3b', 'q4', 'q5', 'q6', 'q7', 'q8', 'q9'].forEach(id => {
+        const el = document.getElementById(id + '-num');
+        if (!el) return;
+        const pos = qs.indexOf(id) + 1;
+        if (pos > 0) el.textContent = pos;
+      });
+    }
+
+    function updateProgress() {
+      if (currentId === 'success') {
+        document.getElementById('prog').style.width = '100%';
+        document.getElementById('prog-pct').textContent = '100%';
+        return;
+      }
+      const flow = buildFlow();
+      const idx = flow.indexOf(currentId);
+      const tot = flow.length - 1;
+      const pct = idx <= 0 ? 0 : Math.round((idx / tot) * 100);
+      document.getElementById('prog').style.width = pct + '%';
+      document.getElementById('prog-pct').textContent = pct + '%';
+      updateQNumbers(flow);
+    }
+
+    function goTo(nextId) {
+      const cur = document.getElementById('s-' + currentId);
+      const nxt = document.getElementById('s-' + nextId);
+      if (!nxt) return;
+
+      if (cur) {
+        cur.classList.remove('active');
+        cur.classList.add('exit-up');
+        setTimeout(() => cur.classList.remove('exit-up'), 260);
+      }
+
+      nxt.classList.add('active');
+      navHistory.push(currentId);
+      currentId = nextId;
+
+      const btnBack = document.getElementById('btn-back');
+      const btnNext = document.getElementById('btn-next');
+      const bar = document.getElementById('bottombar');
+
+      btnBack.style.display = navHistory.length > 0 && nextId !== 'welcome' ? 'inline-flex' : 'none';
+
+      if (nextId === 'success') {
+        document.getElementById('prog').style.width = '100%';
+        document.getElementById('prog-pct').textContent = '100%';
+        bar.style.display = 'none';
+      } else if (nextId === 'welcome') {
+        btnNext.textContent = 'Empezar →';
+        btnNext.className = 'btn btn-next';
+      } else if (nextId === 'q10') {
+        btnNext.textContent = 'Enviar diagnóstico ✓';
+        btnNext.className = 'btn btn-submit';
+      } else {
+        btnNext.textContent = 'Siguiente →';
+        btnNext.className = 'btn btn-next';
+      }
+
+      updateProgress();
+
+      setTimeout(() => {
+        const inp = nxt.querySelector('.f-input, .f-textarea');
+        if (inp) inp.focus();
+      }, 260);
+    }
+
+    function goBack() {
+      if (!navHistory.length) return;
+      const prev = navHistory.pop();
+      const cur = document.getElementById('s-' + currentId);
+      const prv = document.getElementById('s-' + prev);
+      if (cur) cur.classList.remove('active');
+      if (prv) prv.classList.add('active');
+      currentId = prev;
+
+      const btnBack = document.getElementById('btn-back');
+      const btnNext = document.getElementById('btn-next');
+
+      btnBack.style.display = navHistory.length > 0 && prev !== 'welcome' ? 'inline-flex' : 'none';
+      if (prev === 'welcome') {
+        btnNext.textContent = 'Empezar →';
+        btnNext.className = 'btn btn-next';
+      } else if (prev === 'q10') {
+        btnNext.textContent = 'Enviar diagnóstico ✓';
+        btnNext.className = 'btn btn-submit';
+      } else {
+        btnNext.textContent = 'Siguiente →';
+        btnNext.className = 'btn btn-next';
+      }
+
+      updateProgress();
+    }
+
+    function showErr(id) { const el = document.getElementById(id); if (el) el.classList.add('show'); }
+    function hideErrors() { document.querySelectorAll('.err').forEach(e => e.classList.remove('show')); }
+
+    function validate(id) {
+      if (id === 'q1') {
+        const v = document.getElementById('q-nombre').value.trim();
+        if (!v) { showErr('err-q1'); return false; }
+        data.nombre = v;
+      }
+      if (id === 'q2') {
+        if (!data.uso) { showErr('err-q2'); return false; }
+      }
+      if (id === 'q3b') {
+        if (!data.rol) { showErr('err-q3b'); return false; }
+      }
+      if (id === 'q4') {
+        if (!data.experiencia) { showErr('err-q4'); return false; }
+      }
+      if (id === 'q6') {
+        if (!data.formato) { showErr('err-q6'); return false; }
+      }
+      if (id === 'q7') {
+        if (!data.objetivos || !data.objetivos.length) { showErr('err-q7'); return false; }
+      }
+      if (id === 'q8') {
+        const v = document.getElementById('q-minitest').value.trim();
+        if (!v) { showErr('err-q8'); return false; }
+        data.minitest = v;
+      }
+      if (id === 'q10') {
+        const whatsapp = document.getElementById('q-whatsapp').value.trim();
+        const mail = document.getElementById('q-mail').value.trim();
+        if (!whatsapp && !mail) { showErr('err-q10'); return false; }
+        if (mail) {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+          if (!emailRegex.test(mail)) { showErr('err-q10-mail'); return false; }
+        }
+        data.contacto_pref = 'WhatsApp y Mail';
+        data.contacto_dato = (whatsapp ? 'WA: ' + whatsapp : '') + (whatsapp && mail ? ', ' : '') + (mail ? 'Mail: ' + mail : '');
+      }
+      return true;
+    }
+
+    function goNext() {
+      hideErrors();
+      const flow = buildFlow();
+      const idx = flow.indexOf(currentId);
+
+      if (!validate(currentId)) return;
+
+      if (currentId === 'q10') { sendForm(); return; }
+      if (idx < flow.length - 1) goTo(flow[idx + 1]);
+    }
+
+    function selectOpt(el, key) {
+      el.closest('.options').querySelectorAll('.opt').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+      data[key] = el.dataset.val;
+      hideErrors();
+      const auto = ['uso', 'rol', 'experiencia', 'formato', 'contacto_pref'];
+      if (auto.includes(key)) setTimeout(goNext, 250);
+    }
+
+    function toggleMulti(el, key) {
+      el.classList.toggle('selected');
+      if (!data[key]) data[key] = [];
+      const val = el.dataset.val;
+      if (el.classList.contains('selected')) {
+        if (!data[key].includes(val)) data[key].push(val);
+      } else {
+        data[key] = data[key].filter(v => v !== val);
+      }
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        const isTextarea = document.activeElement.tagName === 'TEXTAREA';
+        if (!isTextarea) { e.preventDefault(); goNext(); }
+      }
+    });
+
+    function sendForm() {
+      data.nombre = document.getElementById('q-nombre').value.trim();
+      data.minitest = document.getElementById('q-minitest').value.trim();
+      const _wa = document.getElementById('q-whatsapp').value.trim();
+      const _mail = document.getElementById('q-mail').value.trim();
+      data.contacto_pref = 'WhatsApp y Mail';
+      data.contacto_dato = (_wa ? 'WA: ' + _wa : '') + (_wa && _mail ? ', ' : '') + (_mail ? 'Mail: ' + _mail : '');
+      data.timestamp = new Date().toLocaleString('es-AR');
+
+      var payload = {};
+      for (var k in data) { payload[k] = data[k]; }
+      payload.uso_personal = (data.uso_personal || []).join(', ');
+      payload.herramientas = (data.herramientas || []).join(', ');
+      payload.objetivos = (data.objetivos || []).join(', ');
+      payload.casos = (data.casos || []).join(', ');
+
+      document.getElementById('overlay').classList.add('show');
+
+      try {
+        var params = Object.keys(payload).map(function (k) {
+          return encodeURIComponent(k) + '=' + encodeURIComponent(payload[k] || '');
+        }).join('&');
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', SCRIPT_URL + '?' + params, true);
+        xhr.onload = function () {
+          document.getElementById('overlay').classList.remove('show');
+          var nombre = (data.nombre || '').split(' ')[0];
+          document.getElementById('success-nombre').textContent = nombre ? ', ' + nombre : '';
+          goTo('success');
+        };
+        xhr.onerror = function () {
+          document.getElementById('overlay').classList.remove('show');
+          goTo('success');
+        };
+        xhr.send();
+      } catch (err) {
+        document.getElementById('overlay').classList.remove('show');
+        alert('Hubo un error al enviar. Por favor escribinos al +54 11 4179-6636.');
+      }
+    }
+
+    updateProgress();
+  </script>
+</body>
+
+</html>
